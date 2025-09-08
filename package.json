@@ -1,0 +1,78 @@
+{
+  "name": "vue3-electron-app",
+  "version": "1.0.0",
+  "description": "基于Vue3 + Electron的跨平台PC应用",
+  "main": "public/electron.js",
+  "homepage": "./",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:vue\" \"npm run dev:electron\"",
+    "dev:vue": "vite",
+    "dev:electron": "sleep 5 && electron .",
+    "dev:debug": "concurrently \"npm run dev:vue\" \"npm run dev:electron:debug\"",
+    "dev:electron:debug": "sleep 5 && electron --inspect=9229 .",
+    "dev:electron:debug-brk": "sleep 5 && electron --inspect-brk=9229 .",
+    "dev:remote-debug": "concurrently \"npm run dev:vue\" \"npm run dev:electron:remote-debug\"",
+    "dev:electron:remote-debug": "sleep 5 && electron --remote-debugging-port=9222 .",
+    "build": "npm run build:vue && npm run build:electron",
+    "build:vue": "vite build",
+    "build:electron": "electron-builder",
+    "dist": "npm run build && electron-builder --publish=never",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "pack": "npm run build && electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.example.vue3-electron-app",
+    "productName": "Vue3 Electron App",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "public/electron.js",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.0",
+    "concurrently": "^8.2.2",
+    "electron": "^22.3.27",
+    "electron-builder": "^24.6.4",
+    "vite": "^4.5.0",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "vue": "^3.3.8"
+  }
+}
