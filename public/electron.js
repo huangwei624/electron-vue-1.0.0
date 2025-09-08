@@ -36,7 +36,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: false // 允许拖动功能
     },
-    icon: path.join(__dirname, 'icon.png'), // 应用图标
+    icon: path.resolve(__dirname, 'icon/icon.png'), // 应用图标
     show: false,
     backgroundColor: '#667eea', // 窗口背景色
     transparent: false, // 可以根据需要设置为true实现透明效果
@@ -57,6 +57,30 @@ function createWindow() {
     windowOptions.titleBarStyle = 'hidden'
   }
 
+  // 设置应用图标（macOS主要影响程序坞图标）
+  if (process.platform === 'darwin') {
+    const iconPath = path.resolve(__dirname, 'icon.icns')
+    console.log('🔍 macOS图标路径:', iconPath)
+    console.log('🔍 macOS图标文件存在:', require('fs').existsSync(iconPath))
+    
+    // 检查图标文件是否有效
+    if (require('fs').existsSync(iconPath)) {
+      windowOptions.icon = iconPath
+    } else {
+      // 如果icns文件不存在，使用PNG作为备选
+      const pngIconPath = path.resolve(__dirname, 'icon/icon.png')
+      if (require('fs').existsSync(pngIconPath)) {
+        console.log('⚠️ 使用PNG图标作为备选方案')
+        windowOptions.icon = pngIconPath
+      }
+    }
+  } else {
+    const iconPath = path.resolve(__dirname, 'icon/icon.png')
+    console.log('🔍 其他平台图标路径:', iconPath)
+    console.log('🔍 其他平台图标文件存在:', require('fs').existsSync(iconPath))
+    windowOptions.icon = iconPath
+  }
+  
   mainWindow = new BrowserWindow(windowOptions)
 
   // 加载应用
@@ -89,6 +113,8 @@ function createWindow() {
   // 当窗口被关闭时
   mainWindow.on('closed', () => {
     mainWindow = null
+    // 窗口关闭时直接退出应用
+    app.exit(0)
   })
 
   // 添加快捷键支持
@@ -162,6 +188,30 @@ function createWindow() {
 
 // 当 Electron 完成初始化并准备创建浏览器窗口时调用此方法
 app.whenReady().then(() => {
+  // 设置应用图标（影响程序坞图标）
+  if (process.platform === 'darwin') {
+    const iconPath = path.resolve(__dirname, 'icon.icns')
+    console.log('🔍 设置应用图标:', iconPath)
+    console.log('🔍 图标文件存在:', require('fs').existsSync(iconPath))
+    
+    try {
+      app.dock.setIcon(iconPath)
+      console.log('✅ 应用图标设置成功')
+    } catch (error) {
+      console.error('❌ 设置应用图标失败:', error.message)
+      // 尝试使用PNG图标作为备选
+      const pngIconPath = path.resolve(__dirname, 'icon/icon.png')
+      if (require('fs').existsSync(pngIconPath)) {
+        try {
+          app.dock.setIcon(pngIconPath)
+          console.log('✅ 使用PNG图标作为备选方案')
+        } catch (pngError) {
+          console.error('❌ PNG图标也设置失败:', pngError.message)
+        }
+      }
+    }
+  }
+  
   createWindow()
 
   // 在 macOS 上，当单击 dock 图标并且没有其他窗口打开时，
@@ -178,11 +228,8 @@ app.whenReady().then(() => {
 
 // 当所有窗口都被关闭时退出应用
 app.on('window-all-closed', () => {
-  // 在 macOS 上，除非用户用 Cmd + Q 确定地退出，
-  // 否则绝大部分应用及其菜单栏会保持激活
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  // 直接退出应用，不区分平台
+  app.exit(0)
 })
 
 // 创建应用菜单
@@ -210,7 +257,8 @@ function createMenu() {
           label: '退出',
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
           click: () => {
-            app.quit()
+            // 强制退出应用
+            app.exit(0)
           }
         }
       ]
@@ -299,6 +347,8 @@ ipcMain.handle('window-maximize', () => {
 ipcMain.handle('window-close', () => {
   if (mainWindow) {
     mainWindow.close()
+    // 直接退出应用，而不是仅仅关闭窗口
+    app.exit(0)
   }
 })
 

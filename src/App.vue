@@ -1,9 +1,7 @@
 <template>
   <div id="app">
     <!-- 自定义标题栏 -->
-    <header class="title-bar" v-if="isElectron" :class="platformClass">
-      <!-- macOS 风格：左侧圆形按钮 -->
-      
+    <header class="title-bar" :class="platformClass">
       <div class="title-bar-drag-region">
         <div class="title-bar-content">
           <div class="app-info">
@@ -16,42 +14,19 @@
           </div>
         </div>
       </div>
-      
-      <!-- Windows/Linux 风格：右侧方形按钮 -->
-      <!-- <div class="win-window-controls" v-if="!isMac">
-        <button class="win-control minimize" @click="minimizeWindow" title="最小化">
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <rect x="0" y="5" width="12" height="2" fill="currentColor"/>
-          </svg>
-        </button>
-        <button class="win-control maximize" @click="maximizeWindow" :title="isMaximized ? '还原' : '最大化'">
-          <svg v-if="!isMaximized" width="12" height="12" viewBox="0 0 12 12">
-            <rect x="0" y="0" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1"/>
-          </svg>
-          <svg v-else width="12" height="12" viewBox="0 0 12 12">
-            <rect x="2" y="2" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1"/>
-            <rect x="0" y="0" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1"/>
-          </svg>
-        </button>
-        <button class="win-control close" @click="closeWindow" title="关闭">
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div> -->
     </header>
     
     <!-- 额外的拖动区域 -->
-    <div class="drag-area" v-if="isElectron"></div>
+    <div class="drag-area"></div>
 
     <!-- 普通头部（非Electron环境） -->
-    <header class="app-header" v-else>
+    <!-- <header class="app-header" v-else>
       <h1>Vue3 + Electron 应用</h1>
       <div class="platform-info">
         <span>平台: {{ platform }}</span>
         <span>版本: {{ appVersion }}</span>
       </div>
-    </header>
+    </header> -->
 
     <main class="app-main">
       <div class="welcome-section">

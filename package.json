@@ -1,5 +1,5 @@
 {
-  "name": "vue3-electron-app",
+  "name": "WaKaka",
   "version": "1.0.0",
   "description": "基于Vue3 + Electron的跨平台PC应用",
   "main": "public/electron.js",
@@ -25,17 +25,21 @@
   },
   "build": {
     "appId": "com.example.vue3-electron-app",
-    "productName": "Vue3 Electron App",
+    "productName": "WaKaka",
     "directories": {
       "output": "dist-electron"
     },
     "files": [
       "dist/**/*",
       "public/electron.js",
+      "public/icon/icon.png",
+      "public/icon.icns",
       "node_modules/**/*"
     ],
+    "icon": "public/icon/icon.png",
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "public/icon.icns",
       "target": [
         {
           "target": "dmg",
@@ -44,6 +48,7 @@
       ]
     },
     "win": {
+      "icon": "public/icon/icon.png",
       "target": [
         {
           "target": "nsis",
@@ -52,6 +57,7 @@
       ]
     },
     "linux": {
+      "icon": "public/icon/icon.png",
       "target": [
         {
           "target": "AppImage",
