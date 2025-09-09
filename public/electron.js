@@ -1,10 +1,47 @@
 const { app, BrowserWindow, Menu, ipcMain } = require('electron')
 const path = require('path')
-const isDev = process.env.NODE_ENV === 'development'
+const fs = require('fs')
+const os = require('os')
+
+// 判断是否为开发环境：检查NODE_ENV或是否在打包后的应用中
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+
+// 日志配置
+const logDir = path.join(os.homedir(), 'Library', 'Logs', 'Vue3-Electron-App')
+const logFile = path.join(logDir, `app-${new Date().toISOString().split('T')[0]}.log`)
+
+// 确保日志目录存在
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true })
+}
+
+// 简单的日志函数
+function logToFile(level, message) {
+  const timestamp = new Date().toISOString()
+  const logEntry = `[${timestamp}] [${level}] ${message}\n`
+  
+  try {
+    fs.appendFileSync(logFile, logEntry)
+  } catch (error) {
+    console.error('写入日志失败:', error.message)
+  }
+}
 
 // 调试配置
 const isDebug = process.argv.includes('--inspect') || process.argv.includes('--inspect-brk')
 const isRemoteDebug = process.argv.includes('--remote-debugging-port')
+
+// 环境诊断日志
+console.log('🔍 环境诊断信息:')
+console.log('  - NODE_ENV:', process.env.NODE_ENV)
+console.log('  - app.isPackaged:', app.isPackaged)
+console.log('  - isDev:', isDev)
+console.log('  - isDebug:', isDebug)
+console.log('  - isRemoteDebug:', isRemoteDebug)
+
+// 记录应用启动日志
+logToFile('INFO', `应用启动 - 环境: ${isDev ? '开发' : '生产'}, 平台: ${process.platform}`)
+logToFile('INFO', `日志文件: ${logFile}`)
 
 // 调试日志
 if (isDev) {
@@ -17,6 +54,8 @@ if (isDev) {
     console.log('🌐 远程调试已启用 (端口: 9222)')
     console.log('💡 访问 http://localhost:9222 使用Chrome DevTools')
   }
+} else {
+  console.log('🏭 生产模式已启用 - 调试功能已禁用')
 }
 
 let mainWindow
@@ -108,82 +147,88 @@ function createWindow() {
   // 窗口准备好后显示
   mainWindow.once('ready-to-show', () => {
     mainWindow.show()
+    logToFile('INFO', '主窗口已显示')
   })
 
   // 当窗口被关闭时
   mainWindow.on('closed', () => {
+    logToFile('INFO', '主窗口已关闭')
     mainWindow = null
     // 窗口关闭时直接退出应用
     app.exit(0)
   })
 
-  // 添加快捷键支持
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    // F12 或 Cmd+Option+I (macOS) / Ctrl+Shift+I (Windows/Linux) 打开开发者工具
-    if (input.key === 'F12' || 
-        (input.meta && input.alt && input.key === 'I') || 
-        (input.control && input.shift && input.key === 'I')) {
-      event.preventDefault()
-      if (mainWindow.webContents.isDevToolsOpened()) {
-        mainWindow.webContents.closeDevTools()
-      } else {
-        mainWindow.webContents.openDevTools()
-      }
-    }
-    
-    // Ctrl+R 或 Cmd+R 重新加载
-    if ((input.control && input.key === 'r') || (input.meta && input.key === 'r')) {
-      event.preventDefault()
-      mainWindow.webContents.reload()
-    }
-  })
-
-  // 添加右键菜单支持
-  const { Menu, MenuItem } = require('electron')
-  
-  mainWindow.webContents.on('context-menu', (event, params) => {
-    const menu = new Menu()
-    
-    // 添加右键菜单项
-    menu.append(new MenuItem({
-      label: '检查元素',
-      click: () => {
-        mainWindow.webContents.inspectElement(params.x, params.y)
-        if (!mainWindow.webContents.isDevToolsOpened()) {
-          mainWindow.webContents.openDevTools()
-        }
-      }
-    }))
-    
-    menu.append(new MenuItem({
-      label: '开发者工具',
-      click: () => {
+  // 添加快捷键支持（仅在开发环境）
+  if (isDev) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      // F12 或 Cmd+Option+I (macOS) / Ctrl+Shift+I (Windows/Linux) 打开开发者工具
+      if (input.key === 'F12' || 
+          (input.meta && input.alt && input.key === 'I') || 
+          (input.control && input.shift && input.key === 'I')) {
+        event.preventDefault()
         if (mainWindow.webContents.isDevToolsOpened()) {
           mainWindow.webContents.closeDevTools()
         } else {
           mainWindow.webContents.openDevTools()
         }
       }
-    }))
-    
-    menu.append(new MenuItem({ type: 'separator' }))
-    
-    menu.append(new MenuItem({
-      label: '重新加载',
-      click: () => {
+      
+      // Ctrl+R 或 Cmd+R 重新加载
+      if ((input.control && input.key === 'r') || (input.meta && input.key === 'r')) {
+        event.preventDefault()
         mainWindow.webContents.reload()
       }
-    }))
+    })
+  }
+
+  // 添加右键菜单支持（仅在开发环境）
+  if (isDev) {
+    const { Menu, MenuItem } = require('electron')
     
-    menu.append(new MenuItem({
-      label: '强制重新加载',
-      click: () => {
-        mainWindow.webContents.reloadIgnoringCache()
-      }
-    }))
-    
-    menu.popup()
-  })
+    mainWindow.webContents.on('context-menu', (event, params) => {
+      const menu = new Menu()
+      
+      // 添加右键菜单项
+      menu.append(new MenuItem({
+        label: '检查元素',
+        click: () => {
+          mainWindow.webContents.inspectElement(params.x, params.y)
+          if (!mainWindow.webContents.isDevToolsOpened()) {
+            mainWindow.webContents.openDevTools()
+          }
+        }
+      }))
+      
+      menu.append(new MenuItem({
+        label: '开发者工具',
+        click: () => {
+          if (mainWindow.webContents.isDevToolsOpened()) {
+            mainWindow.webContents.closeDevTools()
+          } else {
+            mainWindow.webContents.openDevTools()
+          }
+        }
+      }))
+      
+      menu.append(new MenuItem({ type: 'separator' }))
+      
+      menu.append(new MenuItem({
+        label: '重新加载',
+        click: () => {
+          mainWindow.webContents.reload()
+        }
+      }))
+      
+      menu.append(new MenuItem({
+        label: '强制重新加载',
+        click: () => {
+          mainWindow.webContents.reloadIgnoringCache()
+        }
+      }))
+      
+      menu.popup()
+    })
+  }
 }
 
 // 当 Electron 完成初始化并准备创建浏览器窗口时调用此方法
@@ -228,12 +273,32 @@ app.whenReady().then(() => {
 
 // 当所有窗口都被关闭时退出应用
 app.on('window-all-closed', () => {
+  logToFile('INFO', '所有窗口已关闭，应用即将退出')
   // 直接退出应用，不区分平台
   app.exit(0)
 })
 
 // 创建应用菜单
 function createMenu() {
+  // 基础菜单项
+  const viewSubmenu = [
+    { role: 'resetZoom', label: '实际大小' },
+    { role: 'zoomIn', label: '放大' },
+    { role: 'zoomOut', label: '缩小' },
+    { type: 'separator' },
+    { role: 'togglefullscreen', label: '全屏' }
+  ]
+  
+  // 在开发环境中添加调试相关菜单项
+  if (isDev) {
+    viewSubmenu.unshift(
+      { role: 'reload', label: '重新加载' },
+      { role: 'forceReload', label: '强制重新加载' },
+      { role: 'toggleDevTools', label: '开发者工具' },
+      { type: 'separator' }
+    )
+  }
+  
   const template = [
     {
       label: '文件',
@@ -276,17 +341,7 @@ function createMenu() {
     },
     {
       label: '视图',
-      submenu: [
-        { role: 'reload', label: '重新加载' },
-        { role: 'forceReload', label: '强制重新加载' },
-        { role: 'toggleDevTools', label: '开发者工具' },
-        { type: 'separator' },
-        { role: 'resetZoom', label: '实际大小' },
-        { role: 'zoomIn', label: '放大' },
-        { role: 'zoomOut', label: '缩小' },
-        { type: 'separator' },
-        { role: 'togglefullscreen', label: '全屏' }
-      ]
+      submenu: viewSubmenu
     },
     {
       label: '窗口',
@@ -356,58 +411,75 @@ ipcMain.handle('window-is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false
 })
 
-// 调试相关IPC处理
-ipcMain.handle('debug-info', () => {
+// 日志相关IPC处理
+ipcMain.handle('get-log-info', () => {
   return {
-    platform: process.platform,
-    version: process.version,
-    isDev: isDev,
-    isDebug: isDebug,
-    isRemoteDebug: isRemoteDebug,
-    memoryUsage: process.memoryUsage(),
-    uptime: process.uptime()
+    logDir: logDir,
+    logFile: logFile,
+    logExists: fs.existsSync(logFile)
   }
 })
 
-ipcMain.handle('debug-log', (event, level, message, data) => {
-  const timestamp = new Date().toISOString()
-  const logMessage = `[${timestamp}] [${level}] ${message}`
-  
-  if (data) {
-    console.log(logMessage, data)
-  } else {
-    console.log(logMessage)
-  }
-  
-  return { success: true, timestamp }
+ipcMain.handle('open-log-folder', () => {
+  const { shell } = require('electron')
+  shell.openPath(logDir)
+  return { success: true }
 })
 
-// 开发者工具控制
-ipcMain.handle('toggle-dev-tools', () => {
-  if (mainWindow) {
-    if (mainWindow.webContents.isDevToolsOpened()) {
-      mainWindow.webContents.closeDevTools()
-      return { opened: false }
-    } else {
-      mainWindow.webContents.openDevTools()
-      return { opened: true }
+// 调试相关IPC处理（仅在开发环境）
+if (isDev) {
+  ipcMain.handle('debug-info', () => {
+    return {
+      platform: process.platform,
+      version: process.version,
+      isDev: isDev,
+      isDebug: isDebug,
+      isRemoteDebug: isRemoteDebug,
+      memoryUsage: process.memoryUsage(),
+      uptime: process.uptime()
     }
-  }
-  return { opened: false }
-})
+  })
 
-ipcMain.handle('open-dev-tools', () => {
-  if (mainWindow) {
-    mainWindow.webContents.openDevTools()
-    return { success: true }
-  }
-  return { success: false }
-})
+  ipcMain.handle('debug-log', (event, level, message, data) => {
+    const timestamp = new Date().toISOString()
+    const logMessage = `[${timestamp}] [${level}] ${message}`
+    
+    if (data) {
+      console.log(logMessage, data)
+    } else {
+      console.log(logMessage)
+    }
+    
+    return { success: true, timestamp }
+  })
 
-ipcMain.handle('close-dev-tools', () => {
-  if (mainWindow) {
-    mainWindow.webContents.closeDevTools()
-    return { success: true }
-  }
-  return { success: false }
-})
+  // 开发者工具控制
+  ipcMain.handle('toggle-dev-tools', () => {
+    if (mainWindow) {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools()
+        return { opened: false }
+      } else {
+        mainWindow.webContents.openDevTools()
+        return { opened: true }
+      }
+    }
+    return { opened: false }
+  })
+
+  ipcMain.handle('open-dev-tools', () => {
+    if (mainWindow) {
+      mainWindow.webContents.openDevTools()
+      return { success: true }
+    }
+    return { success: false }
+  })
+
+  ipcMain.handle('close-dev-tools', () => {
+    if (mainWindow) {
+      mainWindow.webContents.closeDevTools()
+      return { success: true }
+    }
+    return { success: false }
+  })
+}
