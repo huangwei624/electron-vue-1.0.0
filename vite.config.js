@@ -19,3 +19,13 @@ export default defineConfig({
     host: 'localhost'
   }
 })
+
+
+// module.exports = {
+//   pluginOptions: {
+//     electronBuilder: {
+//       preload: 'public/preload.js', // 明确指定preload文件路径
+//       // 其他配置...
+//     }
+//   }
+// };

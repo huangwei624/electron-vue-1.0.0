@@ -1,5 +1,4 @@
 #!/bin/bash
-
 echo "🚀 启动Vue3 + Electron应用..."
 
 # 清理旧进程
@@ -25,7 +24,19 @@ done
 
 # 启动Electron
 echo "⚡ 启动Electron..."
-npm run build &
+
+# 检查是否有打包参数
+if [ "$1" = "mac" ] || [ "$1" = "win" ]; then
+    echo "🚀 开始打包 $1 版本..."
+    if [ "$1" = "mac" ]; then
+        npm run dist:mac &
+    else
+        npm run dist:win &
+    fi
+else
+    npm run build &
+fi
+
 npm run dev:electron:debug &
 ELECTRON_PID=$!
 

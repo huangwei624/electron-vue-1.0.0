@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -31,14 +31,6 @@ function logToFile(level, message) {
 const isDebug = process.argv.includes('--inspect') || process.argv.includes('--inspect-brk')
 const isRemoteDebug = process.argv.includes('--remote-debugging-port')
 
-// 环境诊断日志
-console.log('🔍 环境诊断信息:')
-console.log('  - NODE_ENV:', process.env.NODE_ENV)
-console.log('  - app.isPackaged:', app.isPackaged)
-console.log('  - isDev:', isDev)
-console.log('  - isDebug:', isDebug)
-console.log('  - isRemoteDebug:', isRemoteDebug)
-
 // 记录应用启动日志
 logToFile('INFO', `应用启动 - 环境: ${isDev ? '开发' : '生产'}, 平台: ${process.platform}`)
 logToFile('INFO', `日志文件: ${logFile}`)
@@ -58,6 +50,24 @@ if (isDev) {
   console.log('🏭 生产模式已启用 - 调试功能已禁用')
 }
 
+// 获取正确的 preload 路径
+const getPreloadPath = () => {
+  // 开发环境
+  if (process.env.NODE_ENV === 'development') {
+    return path.join(__dirname, 'preload.js')
+  }
+  // 生产环境（macOS 打包后）
+  return path.join(process.resourcesPath, 'app.asar', 'public', 'preload.js')
+}
+
+const preloadPath = getPreloadPath()
+if (!fs.existsSync(preloadPath)) {
+  dialog.showErrorBox(
+    'Preload 加载失败', 
+    `preload.js 不存在于路径: ${preloadPath}`
+  )
+}
+
 let mainWindow
 
 function createWindow() {
@@ -72,7 +82,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      preload: path.join(__dirname, 'preload.js'),
+      preload: getPreloadPath(),
       webSecurity: false // 允许拖动功能
     },
     icon: path.resolve(__dirname, 'icon/icon.png'), // 应用图标
@@ -99,8 +109,6 @@ function createWindow() {
   // 设置应用图标（macOS主要影响程序坞图标）
   if (process.platform === 'darwin') {
     const iconPath = path.resolve(__dirname, 'icon.icns')
-    console.log('🔍 macOS图标路径:', iconPath)
-    console.log('🔍 macOS图标文件存在:', require('fs').existsSync(iconPath))
     
     // 检查图标文件是否有效
     if (require('fs').existsSync(iconPath)) {
@@ -115,8 +123,6 @@ function createWindow() {
     }
   } else {
     const iconPath = path.resolve(__dirname, 'icon/icon.png')
-    console.log('🔍 其他平台图标路径:', iconPath)
-    console.log('🔍 其他平台图标文件存在:', require('fs').existsSync(iconPath))
     windowOptions.icon = iconPath
   }
   
@@ -125,21 +131,6 @@ function createWindow() {
   // 加载应用
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
-    
-    // 调试信息
-    console.log('📱 窗口已创建:', {
-      width: windowOptions.width,
-      height: windowOptions.height,
-      platform: process.platform,
-      debug: isDebug,
-      remoteDebug: isRemoteDebug
-    })
-    
-    // 延迟打开开发者工具，确保页面完全加载
-    mainWindow.webContents.once('dom-ready', () => {
-      console.log('🔧 页面加载完成，准备打开开发者工具')
-      mainWindow.webContents.openDevTools()
-    })
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
@@ -235,25 +226,12 @@ function createWindow() {
 app.whenReady().then(() => {
   // 设置应用图标（影响程序坞图标）
   if (process.platform === 'darwin') {
-    const iconPath = path.resolve(__dirname, 'icon.icns')
-    console.log('🔍 设置应用图标:', iconPath)
-    console.log('🔍 图标文件存在:', require('fs').existsSync(iconPath))
+    const iconPath = path.resolve(__dirname, 'icon/icon.png')
     
     try {
       app.dock.setIcon(iconPath)
-      console.log('✅ 应用图标设置成功')
     } catch (error) {
       console.error('❌ 设置应用图标失败:', error.message)
-      // 尝试使用PNG图标作为备选
-      const pngIconPath = path.resolve(__dirname, 'icon/icon.png')
-      if (require('fs').existsSync(pngIconPath)) {
-        try {
-          app.dock.setIcon(pngIconPath)
-          console.log('✅ 使用PNG图标作为备选方案')
-        } catch (pngError) {
-          console.error('❌ PNG图标也设置失败:', pngError.message)
-        }
-      }
     }
   }
   
@@ -481,5 +459,10 @@ if (isDev) {
       return { success: true }
     }
     return { success: false }
-  })
+  })  
 }
+
+ipcMain.handle('log-to-file', (event, level, message) => {
+  logToFile(level, message)
+})
+

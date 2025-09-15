@@ -32,6 +32,7 @@
     "files": [
       "dist/**/*",
       "public/electron.js",
+      "public/preload.js",
       "public/icon/icon.png",
       "public/icon.icns",
       "node_modules/**/*"
@@ -39,7 +40,7 @@
     "icon": "public/icon/icon.png",
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "public/icon.icns",
+      "icon": "public/icon/icon.png",
       "target": [
         {
           "target": "dmg",

@@ -19,15 +19,6 @@
     <!-- 额外的拖动区域 -->
     <div class="drag-area"></div>
 
-    <!-- 普通头部（非Electron环境） -->
-    <!-- <header class="app-header" v-else>
-      <h1>Vue3 + Electron 应用</h1>
-      <div class="platform-info">
-        <span>平台: {{ platform }}</span>
-        <span>版本: {{ appVersion }}</span>
-      </div>
-    </header> -->
-
     <main class="app-main">
       <div class="welcome-section">
         <h2>欢迎使用跨平台桌面应用</h2>
@@ -76,7 +67,7 @@
         <button @click="showDebugInfo" class="btn btn-warning" v-if="isElectron">
           调试信息
         </button>
-        <button @click="toggleDevTools" class="btn btn-secondary" v-if="isElectron">
+        <button @click="toggleDevTools" class="btn btn-secondary">
           开发者工具
         </button>
       </div>
@@ -110,6 +101,18 @@ export default {
     // 获取应用信息
     const loadAppInfo = async () => {
       try {
+        
+        if (window.electronAPI) {
+          // 记录到文件
+          try {
+            await window.electronAPI.logToFile('DEBUG', 'Vue组件开始加载应用信息')
+            await window.electronAPI.logToFile('DEBUG', `window.electronAPI 存在: ${!!window.electronAPI}`)
+            await window.electronAPI.logToFile('DEBUG', `window.electronAPI 类型: ${typeof window.electronAPI}`)
+          } catch (logError) {
+            console.error('记录Vue组件日志失败:', logError)
+          }
+        }
+        
         if (window.electronAPI) {
           isElectron.value = true
           platform.value = await window.electronAPI.getPlatform()
@@ -136,31 +139,43 @@ export default {
 
     // 窗口控制功能
     const minimizeWindow = async () => {
-      if (window.electronAPI) {
+      if (checkElectronAPI()) {
         await window.electronAPI.windowMinimize()
       }
     }
 
     const maximizeWindow = async () => {
-      if (window.electronAPI) {
+      if (checkElectronAPI()) {
         await window.electronAPI.windowMaximize()
         // 更新最大化状态
         setTimeout(async () => {
-          isMaximized.value = await window.electronAPI.windowIsMaximized()
+          if (checkElectronAPI()) {
+            isMaximized.value = await window.electronAPI.windowIsMaximized()
+          }
         }, 100)
       }
     }
 
     const closeWindow = async () => {
-      if (window.electronAPI) {
+      if (checkElectronAPI()) {
         await window.electronAPI.windowClose()
       }
+    }
+
+    // 检查electronAPI是否可用的辅助函数
+    const checkElectronAPI = () => {
+      if (!window.electronAPI) {
+        console.warn('⚠️ electronAPI 不可用，可能还在加载中')
+        return false
+      }
+      return true
     }
 
     // 显示消息
     const showMessage = async () => {
       try {
-        if (window.electronAPI) {
+        if (checkElectronAPI()) {
+          await window.electronAPI.logToFile('INFO', `应用启动 -xxmm- 平台: ${platform.value}`)
           await window.electronAPI.showMessageBox({
             type: 'info',
             title: '消息',
@@ -271,26 +286,31 @@ export default {
     }
 
     // 菜单事件处理
-    const handleMenuNew = () => {
+    const handleMenuNew = async() => {
       showMessage()
     }
 
-    const handleMenuOpen = () => {
+    const handleMenuOpen = async () => {
       getSystemInfo()
     }
 
-    const handleMenuAbout = () => {
+    const handleMenuAbout = async() => {
       showMessage()
     }
 
-    onMounted(() => {
-      loadAppInfo()
-      
-      // 监听菜单事件
-      if (window.electronAPI) {
-        window.electronAPI.onMenuNew(handleMenuNew)
-        window.electronAPI.onMenuOpen(handleMenuOpen)
-        window.electronAPI.onMenuAbout(handleMenuAbout)
+    onMounted(async () => {
+      // 先加载应用信息（包含等待electronAPI的逻辑）
+      await loadAppInfo()
+
+      if (apiAvailable && window.electronAPI) {
+        try {
+          window.electronAPI.onMenuNew(handleMenuNew)
+          window.electronAPI.onMenuOpen(handleMenuOpen)
+          window.electronAPI.onMenuAbout(handleMenuAbout)
+          console.log('✅ 菜单事件监听器已注册')
+        } catch (error) {
+          console.error('注册菜单事件监听器失败:', error)
+        }
       }
     })
 
